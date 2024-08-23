@@ -20,7 +20,8 @@ class Restaurant extends PointData {
 }
 
 // initialize db
-const foodDB = new PositionalDB("filename.db", "foodCategory TEXT, rating REAL");
+const foodDB = new PositionalDB("filename.db", 
+                                "foodCategory TEXT, rating REAL");
 
 // insert data
 foodDB.add(new Restaurant(10, 10, "fried chicken", 3.6));
@@ -51,4 +52,4 @@ However, `.db` files will take more disk space.
 |plain db      | 4096 | 122880 | 1257472 | 12984320 |
 |positional db | 4096 | 208896 | 1515520 | 13004800 |
 
-The code that ran these tests can be found [here](./samples/tests.ts)
+The code that ran these tests can be found [here](https://github.com/troylu8/nearby-points/blob/master/samples/tests.ts)
