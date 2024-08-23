@@ -1,6 +1,6 @@
 {
     "name": "nearby-points",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "main": "src/index.ts",
     "scripts": {
         "start": "tsc && node dist/src/index.js",
@@ -10,6 +10,7 @@
         "sqlite3",
         "database"
     ],
+    "type": "module",
     "author": "troylu",
     "license": "ISC",
     "description": "A package for finding data points within a region.",

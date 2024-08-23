@@ -37,9 +37,13 @@ const foodNearby = foodDB.getWithinRadius(50, 50, 100);
 However, `.db` files will take more disk space.
 
 **Tests for finding points within `20` units of `(50, 50)`:**
+
 `n` - number of points, randomly generated between `(0,0)` and `(100, 100)`
+
 `plain db` - SQLite3 database where all data points are put into 1 table
+
 `positional db` - SQLite3 database created using `PositionalDB` class
+
 #### speed (ms)
 | n            | 100    | 1,000  | 10,000 | 100,000  |
 | ------------ | ------ | ------ | ------ | -------- |

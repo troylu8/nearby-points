@@ -1,4 +1,4 @@
-import { PointData, PositionalDB } from "../src";
+import { PointData, PositionalDB } from "../src/index.js";
 import fs from 'fs';
 const perf = require('execution-time')();
 import SQLite3 from "better-sqlite3";
