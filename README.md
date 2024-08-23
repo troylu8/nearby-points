@@ -3,7 +3,7 @@ A package for finding data points within a region.
 
 ### sample usage
 ```ts
-import { PositionalDB, PointData } from "../src/db";
+import { PositionalDB, PointData } from "nearby-points";
 
 // create subclass PointData 
 class Restaurant extends PointData {
