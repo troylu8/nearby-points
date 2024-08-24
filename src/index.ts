@@ -95,7 +95,7 @@ class PositionalDB<T extends PointData> {
 
         if (prevTable == newTable) {
             this.db.prepare(`UPDATE ${newTable} SET x=?, y=? WHERE id=?`).run(newX, newY, data.id);
-            return {...data, x: newX, y: newY} as T;
+            return this._merge(data, {x: newX, y: newY}) as T;
         }
         else {
             const prevData = this.db.prepare(`SELECT * FROM ${prevTable} WHERE id=?`).get(data.id) as T;
@@ -103,10 +103,10 @@ class PositionalDB<T extends PointData> {
             
             this._rem(prevData.id, prevTable);
 
-            const newData = {...prevData, x: newX, y: newY};
+            const newData = this._merge(prevData, {x: newX, y: newY}) as T
             this._add(newData, newTable);
 
-            return newData as T;
+            return newData;
         }
     }
 
@@ -123,7 +123,7 @@ class PositionalDB<T extends PointData> {
 
         const prevTable = this.findTable(data.x, data.y);
         if (null == this.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND tbl_name=${prevTable}`).get())
-            return; // data at this position did not exist
+            throw new Error(`cant find any data at ${prevTable}`);
 
         const newTable = (fields.x != null || fields.y != null)? 
             this.findTable(fields.x ?? data.x, fields.y ?? data.y) :
@@ -131,9 +131,23 @@ class PositionalDB<T extends PointData> {
 
         this._rem(data.id, prevTable);
         
-        const newData = {...data, ...fields};
+        const newData = this._merge(data, fields);
         this._add(newData, newTable);
 
+        return newData;
+    }
+
+    private _merge(data: T, fields: any) {
+        const newData = {
+            ...data, 
+            id: data.id,
+            x: data.x,
+            y: data.y,
+            ...fields
+        };
+        delete newData._id;
+        delete newData._x;
+        delete newData._y;
         return newData;
     }
 
