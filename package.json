@@ -1,6 +1,6 @@
 {
     "name": "nearby-points",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "main": "dist/src/index.js",
     "types": "dist/src/index.d.ts",
     "scripts": {
@@ -21,7 +21,6 @@
     },
     "dependencies": {
         "@types/better-sqlite3": "^7.6.11",
-        "better-sqlite3": "^11.1.2",
-        "nearby-points": "file:"
+        "better-sqlite3": "^11.1.2"
     }
 }

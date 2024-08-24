@@ -1,6 +1,8 @@
 # nearby-points
 A package for finding data points within a region.
 
+[Full API reference](https://github.com/troylu8/nearby-points/wiki)
+
 ### sample usage
 ```ts
 import { PositionalDB, PointData } from "nearby-points";
@@ -56,4 +58,8 @@ However, `.db` files will take more disk space.
 |plain db      | 4096 | 122880 | 1257472 | 12984320 |
 |positional db | 4096 | 208896 | 1515520 | 13004800 |
 
-The code that ran these tests can be found [here](https://github.com/troylu8/nearby-points/blob/master/samples/tests.ts)
+The code that ran these tests can be found [here](https://github.com/troylu8/nearby-points/blob/master/resources/tests.ts)
+
+
+
+[diagram of grid created by PositionalDB](./resources/positionaldb-blocks.png)

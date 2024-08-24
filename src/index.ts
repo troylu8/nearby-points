@@ -66,8 +66,14 @@ class PositionalDB<T extends PointData> {
             .run(data.id, data.x, data.y, ...this.props.map(p => (data as any)[p]));
     }
 
-    rem(id: string, x: number, y: number) {
-        this._rem(id, this.findTable(x, y));
+    rem(id: string, x: number  | undefined, y: number | undefined) {
+        if (x == undefined || y == undefined) {
+            const table = this._findTableWithId(id);
+            if (!table) return;
+            this._rem(id, table);
+        }
+
+        else this._rem(id, this.findTable(x, y));
     }
     private _rem(id: string, table: string) {
         this.db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id);
@@ -80,6 +86,7 @@ class PositionalDB<T extends PointData> {
      * @param data Pointdata object to be moved
      * @param newX 
      * @param newY 
+     * @returns new data object with new coordinates
      */
     move(data: T, newX: number, newY: number) {
 
@@ -88,13 +95,18 @@ class PositionalDB<T extends PointData> {
 
         if (prevTable == newTable) {
             this.db.prepare(`UPDATE ${newTable} SET x=?, y=? WHERE id=?`).run(newX, newY, data.id);
+            return {...data, x: newX, y: newY} as T;
         }
         else {
             const prevData = this.db.prepare(`SELECT * FROM ${prevTable} WHERE id=?`).get(data.id) as T;
-            if (!prevData) return;
+            if (!prevData) throw new Error(`no point with id ${data.id} at ${data.x},${data.y}`);
             
             this._rem(prevData.id, prevTable);
-            this._add({...prevData, x: newX, y: newY}, newTable);
+
+            const newData = {...prevData, x: newX, y: newY};
+            this._add(newData, newTable);
+
+            return newData as T;
         }
     }
 
@@ -102,6 +114,7 @@ class PositionalDB<T extends PointData> {
      * 
      * @param data original PointData object 
      * @param fields object with ???
+     * @returns new data object with updated fields
      * 
      * new fields will be merged with original object like so: `{...data, ...fields}`
      */
@@ -117,7 +130,11 @@ class PositionalDB<T extends PointData> {
             prevTable;
 
         this._rem(data.id, prevTable);
-        this._add({...data, ...fields}, newTable);
+        
+        const newData = {...data, ...fields};
+        this._add(newData, newTable);
+
+        return newData;
     }
 
     /**
@@ -215,7 +232,6 @@ class PositionalDB<T extends PointData> {
         return res;
     }
 
-    //TODO: test
     /**
      * get all points
      */
@@ -233,16 +249,20 @@ class PositionalDB<T extends PointData> {
      * 
      * optionally add x and y parameters to speed up search.
      * 
-     * without them, all tables must be searched
+     * without them, all blocks must be searched
      */
     get(id: string, x?: number, y?: number) {
         if (x != null && y != null) 
             return this.db.prepare(`SELECT * FROM ${this.findTable(x, y)} WHERE id=?`).get(id) as T;
         
+        return this.db.prepare(`SELECT * FROM ${this._findTableWithId(id)} WHERE id=?`).get(id) as T;
+    }
+
+    private _findTableWithId(id: string) {
         const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
         for (const t of tables) {
             const res = this.db.prepare(`SELECT * FROM ${t} WHERE id=?`).get(id) as T;
-            if (res != null) return res;
+            if (res != null) return t as string;
         }
     }
 }
