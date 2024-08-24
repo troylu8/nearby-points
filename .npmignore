@@ -1,0 +1,10 @@
+.vscode
+
+node_modules
+
+dist/samples
+dist/test
+test
+
+**/*.db
+db
