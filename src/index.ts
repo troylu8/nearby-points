@@ -155,15 +155,12 @@ class PositionalDB<T extends PointData> {
 
         const [lowerX, upperY] = this.findBlock(x, y);
         const [upperX, lowerY] = this.findBlock(right, bottom);
-        console.log([lowerX, lowerY]);
-        console.log([upperX, upperY]);
         const res : T[] = [];
 
         // these blocks are completely within the rect
         for (let y = lowerY + this.blockSize; y < upperY; y += this.blockSize) {
             for (let x = lowerX + this.blockSize; x < upperX; x += this.blockSize) {
                 const table = this.posToStr(x, y);
-                console.log(table, " is fully in");
 
                 try { res.push( ...(this.db.prepare(`SELECT * FROM ${table}`).all() as T[]) ); }
                 catch (e) {
@@ -174,7 +171,6 @@ class PositionalDB<T extends PointData> {
 
         // points in edge blocks may or may not be within the rect
         function appendPointsWithinRect(db: SQLite3.Database, res: T[], table: string) {
-            console.log(table, "is on the edge");
             try { 
                 const within = db.prepare(
                     `SELECT * FROM ${table} WHERE ? <= y AND y <= ? AND ? <= x AND x <= ?`
@@ -190,7 +186,6 @@ class PositionalDB<T extends PointData> {
             appendPointsWithinRect(this.db, res, this.posToStr(lowerX, y));
             appendPointsWithinRect(this.db, res, this.posToStr(upperX, y));
         }
-        console.log("--");
         for (let x = lowerX + this.blockSize; x < upperX; x += this.blockSize) {
             appendPointsWithinRect(this.db, res, this.posToStr(x, lowerY));
             appendPointsWithinRect(this.db, res, this.posToStr(x, upperY));
@@ -236,9 +231,9 @@ class PositionalDB<T extends PointData> {
      * get all points
      */
     getAll() {
-        const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+        const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[];
         const res = [];
-        for (const t of tables) res.push( ...this.db.prepare(`SELECT * FROM ${t}`).all() );
+        for (const t of tables) res.push( ...this.db.prepare(`SELECT * FROM ${t.name}`).all() );
         return res as T[];
     }
 
@@ -252,18 +247,24 @@ class PositionalDB<T extends PointData> {
      * without them, all blocks must be searched
      */
     get(id: string, x?: number, y?: number) {
-        if (x != null && y != null) 
+
+        if (x != null && y != null) {
             return this.db.prepare(`SELECT * FROM ${this.findTable(x, y)} WHERE id=?`).get(id) as T;
+        }
         
-        return this.db.prepare(`SELECT * FROM ${this._findTableWithId(id)} WHERE id=?`).get(id) as T;
+        const table = this._findTableWithId(id);
+        if (!table) throw new Error(`no point found with id ${id}`);
+        return this.db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(id) as T;
     }
 
     private _findTableWithId(id: string) {
-        const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+
+        const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[];
         for (const t of tables) {
-            const res = this.db.prepare(`SELECT * FROM ${t} WHERE id=?`).get(id) as T;
-            if (res != null) return t as string;
+            const res = this.db.prepare(`SELECT * FROM ${t.name} WHERE id=?`).get(id) as T;
+            if (res != null) return t.name as string;
         }
+
     }
 }
 
