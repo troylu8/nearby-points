@@ -62,4 +62,4 @@ The code that ran these tests can be found [here](https://github.com/troylu8/nea
 
 
 
-[diagram of grid created by PositionalDB](./resources/positionaldb-blocks.png)
+![diagram of grid created by PositionalDB](./resources/positionaldb-blocks.png)
