@@ -5,6 +5,7 @@ node_modules
 dist/samples
 dist/test
 test
+resources
 
 **/*.db
 db

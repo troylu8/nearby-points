@@ -21,6 +21,7 @@
     },
     "dependencies": {
         "@types/better-sqlite3": "^7.6.11",
-        "better-sqlite3": "^11.1.2"
+        "better-sqlite3": "^11.1.2",
+        "nearby-points": "file:"
     }
 }
