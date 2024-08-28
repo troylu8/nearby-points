@@ -44,18 +44,10 @@ class PositionalDB<T extends PointData> {
     
         this._blockSize = blockSize;
     }
-    
-    private findBlock(x: number, y: number) {
-        return [x - x % this.blockSize, y - y % this.blockSize];
-    }
-    private findTable(x: number, y: number) {
-        const block = this.findBlock(x, y);
-        return this.posToStr(block[0], block[1]);
-    }
-    private posToStr(x: number, y: number) {
-        return `'x${x}y${y}'`;
-    }
 
+    /**
+     * @param data `Pointdata` object to be added
+     */
     add(data: T) {
         this._add(data, this.findTable(data.x, data.y));
     }
@@ -66,16 +58,26 @@ class PositionalDB<T extends PointData> {
             .run(data.id, data.x, data.y, ...this.props.map(p => (data as any)[p]));
     }
 
-    rem(id: string, x: number  | undefined, y: number | undefined) {
-        if (x == undefined || y == undefined) {
-            const table = this._findTableWithId(id);
-            if (!table) return;
-            this._rem(id, table);
-        }
-
-        else this._rem(id, this.findTable(x, y));
+    /**
+     * @param data `Pointdata` object to be removed
+     */
+    rem(data: T) {
+        return this.remWithId(data.id, data.x, data.y);
     }
-    private _rem(id: string, table: string) {
+
+    /**
+     * @param id id of `Pointdata` object to be moved
+     * @param x 
+     * @param y 
+     * 
+     * optionally add `x` and `y` parameters to speed up search
+     * 
+     * without them, all blocks must be searched
+     */
+    remWithId(id: string, x?: number, y?: number) {
+        return this._remWithId(id, this.findTableWithIdOrXY(id, x, y));
+    }
+    private _remWithId(id: string, table: string) {
         this.db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id);
         
         const count = (this.db.prepare(`SELECT COUNT(1) FROM ${table}`).get() as any)['COUNT(1)'];
@@ -83,27 +85,42 @@ class PositionalDB<T extends PointData> {
     }
 
     /**
-     * @param data Pointdata object to be moved
+     * @param data `Pointdata` object to be moved
      * @param newX 
      * @param newY 
      * @returns new data object with new coordinates
      */
     move(data: T, newX: number, newY: number) {
+        return this.moveWithId(data.id, newX, newY, data.x, data.y);
+    }
 
-        const prevTable = this.findTable(data.x, data.y);
+    /**
+     * @param id id of `Pointdata` object to be moved
+     * @param newX 
+     * @param newY 
+     * @param prevX
+     * @param prevY
+     * @returns new data object with new coordinates
+     * 
+     * optionally add `prevX` and `prevY` parameters to speed up search for old object
+     * 
+     * without them, all blocks must be searched
+     */
+    moveWithId(id: string, newX: number, newY: number, prevX?: number, prevY?: number) {
+
+        const prevTable = this.findTableWithIdOrXY(id, prevX, prevY);
+        const prevData = this.getData(id, prevTable);
+        
         const newTable = this.findTable(newX, newY);
 
         if (prevTable == newTable) {
-            this.db.prepare(`UPDATE ${newTable} SET x=?, y=? WHERE id=?`).run(newX, newY, data.id);
-            return this._merge(data, {x: newX, y: newY}) as T;
+            this.db.prepare(`UPDATE ${newTable} SET x=?, y=? WHERE id=?`).run(newX, newY, id);
+            return this.merge(prevData, {x: newX, y: newY}) as T;
         }
         else {
-            const prevData = this.db.prepare(`SELECT * FROM ${prevTable} WHERE id=?`).get(data.id) as T;
-            if (!prevData) throw new Error(`no point with id ${data.id} at ${data.x},${data.y}`);
-            
-            this._rem(prevData.id, prevTable);
+            this._remWithId(id, prevTable);
 
-            const newData = this._merge(prevData, {x: newX, y: newY}) as T
+            const newData = this.merge(prevData, {x: newX, y: newY}) as T
             this._add(newData, newTable);
 
             return newData;
@@ -112,32 +129,80 @@ class PositionalDB<T extends PointData> {
 
     /**
      * 
-     * @param data original PointData object 
-     * @param fields object with ???
+     * @param data original `PointData` object 
+     * @param fields object with new fields to be applied to data
      * @returns new data object with updated fields
      * 
      * new fields will be merged with original object like so: `{...data, ...fields}`
      */
     edit(data: T, fields: any) {
+        return this.editWithId(data.id, fields, data.x, data.y);
+    }
+
+    /**
+     * 
+     * @param id id of original `PointData` object 
+     * @param fields object with new fields to be applied to data
+     * @param x 
+     * @param y 
+     * @returns new data object with updated fields
+     * 
+     * new fields will be merged with original object like so: `{...data, ...fields}`
+     * 
+     * optionally add `x` and `y` parameters to speed up search.
+     * 
+     * without them, all blocks must be searched
+     */
+    editWithId(id: string, fields: any, x?: number, y?: number) {
         if (fields.id != null) throw new Error("cannot edit id");
 
-        const prevTable = this.findTable(data.x, data.y);
-        if (null == this.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND tbl_name=${prevTable}`).get())
-            throw new Error(`cant find any data at ${prevTable}`);
+        const prevTable = this.findTableWithIdOrXY(id, x, y);
 
         const newTable = (fields.x != null || fields.y != null)? 
-            this.findTable(fields.x ?? data.x, fields.y ?? data.y) :
+            this.findTable(fields.x ?? x, fields.y ?? y) :
             prevTable;
 
-        this._rem(data.id, prevTable);
-        
-        const newData = this._merge(data, fields);
+        const newData = this.merge(this.getData(id, prevTable), fields);
+            
+        this._remWithId(id, prevTable);
         this._add(newData, newTable);
 
         return newData;
     }
 
-    private _merge(data: T, fields: any) {
+    private findBlock(x: number, y: number) {
+        return [x - x % this.blockSize, y - y % this.blockSize];
+    }
+    private findTable(x: number, y: number) {
+        const block = this.findBlock(x, y);
+        return this.posToStr(block[0], block[1]);
+    }
+    private posToStr(x: number, y: number) { return `'x${x}y${y}'`; }
+
+    private findTableWithIdOrXY(id: string, x?: number, y?: number) {
+        const res = (x == null || y == null)? this.findTableWithId(id) : this.findTable(x, y);
+        if (null == this.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND tbl_name=${res}`).get())
+            throw new Error(`cannot find data of id ${id}`); 
+        return res;
+    }
+
+    private findTableWithId(id: string): string {
+
+        const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[];
+        for (const t of tables) {
+            const res = this.db.prepare(`SELECT * FROM ${t.name} WHERE id=?`).get(id) as T;
+            if (res != null) return `'${t.name}'` as string;
+        }
+        throw new Error(`cannot find id ${id}`);
+    }
+
+    private getData(id: string, table: string) {
+        const res = this.db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(id) as T;
+        if (!res) throw new Error(`no point found with id ${id}`);
+        return res as T;
+    }
+
+    private merge(data: T, fields: any) {
         const newData = {
             ...data, 
             id: data.id,
@@ -256,29 +321,12 @@ class PositionalDB<T extends PointData> {
      * @param x
      * @param y 
      * 
-     * optionally add x and y parameters to speed up search.
+     * optionally add `x` and `y` parameters to speed up search.
      * 
      * without them, all blocks must be searched
      */
     get(id: string, x?: number, y?: number) {
-
-        if (x != null && y != null) {
-            return this.db.prepare(`SELECT * FROM ${this.findTable(x, y)} WHERE id=?`).get(id) as T;
-        }
-        
-        const table = this._findTableWithId(id);
-        if (!table) throw new Error(`no point found with id ${id}`);
-        return this.db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(id) as T;
-    }
-
-    private _findTableWithId(id: string) {
-
-        const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[];
-        for (const t of tables) {
-            const res = this.db.prepare(`SELECT * FROM ${t.name} WHERE id=?`).get(id) as T;
-            if (res != null) return t.name as string;
-        }
-
+        return this.getData(id, this.findTableWithIdOrXY(id, x, y));
     }
 }
 
