@@ -236,6 +236,20 @@ class PositionalDB<T extends PointData> {
     }
 
     /**
+     * get all points within a block
+     * @param block either a string denoting block name: `'x20y20'` or an array `[x, y]` of coordinates within the desired block: `[20, 20]`
+     */
+    getWithinBlock(block: string | [number, number]) {
+        const table = typeof(block) == "string"? block : this.findTable(block[0], block[1]);
+
+        try { 
+            return this.db.prepare(`SELECT * FROM ${table}`).all() as T[]; }
+        catch (e) {
+            return [];
+        } 
+    }
+
+    /**
      * get all points within rectangular area
      * 
      * x and y params refer to the upper left corner of desired area
