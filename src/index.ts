@@ -170,10 +170,29 @@ class PositionalDB<T extends PointData> {
         return newData;
     }
 
-    private findBlock(x: number, y: number) {
+    findTablesInRect(x: number, y: number, width: number, height: number) {
+        if (width < 0) x += width;
+        if (height < 0) y -= height;
+        const right = x + Math.abs(width);
+        const bottom = y - Math.abs(height);
+
+        const [lowerX, upperY] = this.findBlock(x, y);
+        const [upperX, lowerY] = this.findBlock(right, bottom);
+        const res : string[] = [];
+
+        for (let y = lowerY; y < upperY; y += this.blockSize) {
+            for (let x = lowerX; x < upperX; x += this.blockSize) {
+                res.push(this.posToStr(x, y));
+            }
+        }
+
+        return res;
+    }
+
+    findBlock(x: number, y: number) {
         return [x - x % this.blockSize, y - y % this.blockSize];
     }
-    private findTable(x: number, y: number) {
+    findTable(x: number, y: number) {
         const block = this.findBlock(x, y);
         return this.posToStr(block[0], block[1]);
     }
